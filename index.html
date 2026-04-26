@@ -3,42 +3,31 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>確定申告準備アプリ OCR版</title>
+<title>確定申告準備アプリ</title>
 
 <script src="https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js"></script>
 
 <style>
 body { font-family: sans-serif; padding: 16px; background: #f5f5f5; }
+h1 { font-size: 24px; }
 .card { background: white; padding: 16px; margin-bottom: 16px; border-radius: 12px; }
 input, select, textarea, button {
-  width: 100%;
-  box-sizing: border-box;
-  padding: 12px;
-  margin-top: 8px;
-  font-size: 16px;
+  width: 100%; box-sizing: border-box; padding: 12px; margin-top: 8px; font-size: 16px;
 }
 button { background: #222; color: white; border: none; border-radius: 8px; }
 .delete { background: #c0392b; }
-img { width: 90px; margin-top: 8px; border-radius: 6px; }
+.sub { background: #555; }
+.row { border-bottom: 1px solid #ddd; padding: 10px 0; }
 .small { color: #666; font-size: 13px; }
 .total { font-size: 20px; font-weight: bold; }
-.row { border-bottom: 1px solid #ddd; padding: 10px 0; }
-.ocrbox {
-  white-space: pre-wrap;
-  background: #eee;
-  padding: 10px;
-  border-radius: 8px;
-  font-size: 13px;
-}
+.ocrbox { white-space: pre-wrap; background: #eee; padding: 10px; border-radius: 8px; font-size: 13px; }
+img { width: 90px; margin-top: 8px; border-radius: 6px; }
+table { width: 100%; border-collapse: collapse; font-size: 14px; }
+th, td { border-bottom: 1px solid #ddd; padding: 8px; text-align: right; }
+th:first-child, td:first-child { text-align: left; }
 .modal {
-  display:none;
-  position:fixed;
-  top:0; left:0;
-  width:100%; height:100%;
-  background:rgba(0,0,0,0.8);
-  justify-content:center;
-  align-items:center;
-  z-index: 10;
+  display:none; position:fixed; top:0; left:0; width:100%; height:100%;
+  background:rgba(0,0,0,0.8); justify-content:center; align-items:center; z-index:10;
 }
 .modal img { width:90%; max-height:90%; object-fit:contain; }
 </style>
@@ -46,13 +35,32 @@ img { width: 90px; margin-top: 8px; border-radius: 6px; }
 
 <body>
 
-<h1>確定申告準備アプリ OCR版</h1>
+<h1>確定申告準備アプリ</h1>
 
 <div class="card">
   <h2>全体合計</h2>
   <p>売上・収入</p><p class="total" id="allIncome">¥0</p>
   <p>経費</p><p class="total" id="allExpense">¥0</p>
   <p>利益</p><p class="total" id="allProfit">¥0</p>
+</div>
+
+<div class="card">
+  <h2>事業</h2>
+  <p>売上</p><p class="total" id="businessIncome">¥0</p>
+  <p>経費</p><p class="total" id="businessExpense">¥0</p>
+  <p>利益</p><p class="total" id="businessProfit">¥0</p>
+</div>
+
+<div class="card">
+  <h2>FX・株</h2>
+  <p>収入</p><p class="total" id="investmentIncome">¥0</p>
+  <p>経費</p><p class="total" id="investmentExpense">¥0</p>
+  <p>利益</p><p class="total" id="investmentProfit">¥0</p>
+</div>
+
+<div class="card">
+  <h2>月別集計</h2>
+  <div id="monthlySummary"></div>
 </div>
 
 <div class="card">
@@ -100,7 +108,7 @@ img { width: 90px; margin-top: 8px; border-radius: 6px; }
   <label>レシート画像</label>
   <input type="file" id="image" accept="image/*">
 
-  <button onclick="readReceipt()">レシートを読み取る</button>
+  <button class="sub" onclick="readReceipt()">レシートを読み取る</button>
 
   <p class="small">OCR結果</p>
   <div class="ocrbox" id="ocrResult">まだ読み取っていません。</div>
@@ -114,7 +122,13 @@ img { width: 90px; margin-top: 8px; border-radius: 6px; }
 </div>
 
 <div class="card">
+  <h2>バックアップ</h2>
   <button onclick="downloadCSV()">CSVダウンロード</button>
+
+  <label>CSVから復元</label>
+  <input type="file" id="csvFile" accept=".csv,text/csv">
+  <button class="sub" onclick="importCSV()">CSVを読み込む</button>
+
   <button class="delete" onclick="clearData()">全データ削除</button>
 </div>
 
@@ -130,70 +144,54 @@ let currentOcrText = "";
 document.getElementById("date").valueAsDate = new Date();
 
 function yen(n) {
-  return "¥" + n.toLocaleString();
+  return "¥" + Number(n || 0).toLocaleString();
 }
 
 function resizeImage(file) {
   return new Promise(resolve => {
     const reader = new FileReader();
-
     reader.onload = e => {
       const img = new Image();
-
       img.onload = () => {
         const canvas = document.createElement("canvas");
         const ctx = canvas.getContext("2d");
-
         const maxWidth = 800;
-        const scale = maxWidth / img.width;
-
-        canvas.width = maxWidth;
+        const scale = Math.min(1, maxWidth / img.width);
+        canvas.width = img.width * scale;
         canvas.height = img.height * scale;
-
         ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
-
         resolve(canvas.toDataURL("image/jpeg", 0.75));
       };
-
       img.src = e.target.result;
     };
-
     reader.readAsDataURL(file);
   });
 }
 
 async function readReceipt() {
   const file = document.getElementById("image").files[0];
-
   if (!file) {
     alert("レシート画像を選んでください");
     return;
   }
 
-  document.getElementById("ocrResult").innerText = "読み取り中です。少し待ってください…";
-
+  document.getElementById("ocrResult").innerText = "読み取り中です…";
   currentImageData = await resizeImage(file);
 
-  const result = await Tesseract.recognize(
-    currentImageData,
-    "jpn+eng",
-    {
-      logger: m => {
-        if (m.status === "recognizing text") {
-          const progress = Math.round(m.progress * 100);
-          document.getElementById("ocrResult").innerText = "読み取り中… " + progress + "%";
-        }
+  const result = await Tesseract.recognize(currentImageData, "jpn+eng", {
+    logger: m => {
+      if (m.status === "recognizing text") {
+        document.getElementById("ocrResult").innerText =
+          "読み取り中… " + Math.round(m.progress * 100) + "%";
       }
     }
-  );
+  });
 
-  currentOcrText = result.data.text;
+  currentOcrText = result.data.text || "";
   document.getElementById("ocrResult").innerText = currentOcrText || "文字を読み取れませんでした。";
 
-  const amount = guessAmount(currentOcrText);
-  if (amount) {
-    document.getElementById("amount").value = amount;
-  }
+  const guessed = guessAmount(currentOcrText);
+  if (guessed) document.getElementById("amount").value = guessed;
 }
 
 function guessAmount(text) {
@@ -201,74 +199,49 @@ function guessAmount(text) {
   let candidates = [];
 
   lines.forEach(line => {
-    if (
-      line.includes("合計") ||
-      line.includes("総計") ||
-      line.includes("お買上") ||
-      line.includes("税込") ||
-      line.includes("現計")
-    ) {
+    if (line.includes("合計") || line.includes("総計") || line.includes("税込") || line.includes("現計")) {
       const nums = line.match(/[0-9,]{2,}/g);
-      if (nums) {
-        nums.forEach(n => {
-          candidates.push(Number(n.replace(/,/g, "")));
-        });
-      }
+      if (nums) nums.forEach(n => candidates.push(Number(n.replace(/,/g, ""))));
     }
   });
 
   if (candidates.length === 0) {
     const nums = text.match(/[0-9,]{3,}/g);
-    if (nums) {
-      nums.forEach(n => candidates.push(Number(n.replace(/,/g, ""))));
-    }
+    if (nums) nums.forEach(n => candidates.push(Number(n.replace(/,/g, ""))));
   }
 
   candidates = candidates.filter(n => n > 0 && n < 10000000);
-
-  if (candidates.length === 0) return "";
-
-  return Math.max(...candidates);
+  return candidates.length ? Math.max(...candidates) : "";
 }
 
 async function addData() {
   const file = document.getElementById("image").files[0];
+  if (file && !currentImageData) currentImageData = await resizeImage(file);
 
-  if (file && !currentImageData) {
-    currentImageData = await resizeImage(file);
-  }
+  const item = {
+    id: Date.now(),
+    date: document.getElementById("date").value,
+    account: document.getElementById("account").value,
+    type: document.getElementById("type").value,
+    category: document.getElementById("category").value,
+    amount: Number(document.getElementById("amount").value),
+    memo: document.getElementById("memo").value,
+    image: currentImageData,
+    ocrText: currentOcrText
+  };
 
-  const date = document.getElementById("date").value;
-  const account = document.getElementById("account").value;
-  const type = document.getElementById("type").value;
-  const category = document.getElementById("category").value;
-  const amount = Number(document.getElementById("amount").value);
-  const memo = document.getElementById("memo").value;
-
-  if (!date || !amount) {
+  if (!item.date || !item.amount) {
     alert("日付と金額を入力してください");
     return;
   }
 
-  data.push({
-    id: Date.now(),
-    date,
-    account,
-    type,
-    category,
-    amount,
-    memo,
-    image: currentImageData,
-    ocrText: currentOcrText
-  });
-
+  data.push(item);
   saveData();
 
   document.getElementById("amount").value = "";
   document.getElementById("memo").value = "";
   document.getElementById("image").value = "";
   document.getElementById("ocrResult").innerText = "まだ読み取っていません。";
-
   currentImageData = null;
   currentOcrText = "";
 }
@@ -281,7 +254,7 @@ function saveData() {
 function calc(account, type) {
   return data
     .filter(d => d.account === account && d.type === type)
-    .reduce((sum, d) => sum + d.amount, 0);
+    .reduce((sum, d) => sum + Number(d.amount || 0), 0);
 }
 
 function updateUI() {
@@ -293,10 +266,51 @@ function updateUI() {
   const allIncome = businessIncome + investmentIncome;
   const allExpense = businessExpense + investmentExpense;
 
+  document.getElementById("businessIncome").innerText = yen(businessIncome);
+  document.getElementById("businessExpense").innerText = yen(businessExpense);
+  document.getElementById("businessProfit").innerText = yen(businessIncome - businessExpense);
+
+  document.getElementById("investmentIncome").innerText = yen(investmentIncome);
+  document.getElementById("investmentExpense").innerText = yen(investmentExpense);
+  document.getElementById("investmentProfit").innerText = yen(investmentIncome - investmentExpense);
+
   document.getElementById("allIncome").innerText = yen(allIncome);
   document.getElementById("allExpense").innerText = yen(allExpense);
   document.getElementById("allProfit").innerText = yen(allIncome - allExpense);
 
+  updateMonthlySummary();
+  updateList();
+}
+
+function updateMonthlySummary() {
+  const monthly = {};
+
+  data.forEach(d => {
+    const month = d.date ? d.date.slice(0, 7) : "日付なし";
+    if (!monthly[month]) monthly[month] = { income: 0, expense: 0 };
+    if (d.type === "income") monthly[month].income += Number(d.amount || 0);
+    if (d.type === "expense") monthly[month].expense += Number(d.amount || 0);
+  });
+
+  const months = Object.keys(monthly).sort().reverse();
+
+  if (months.length === 0) {
+    document.getElementById("monthlySummary").innerHTML = "<p>まだデータがありません。</p>";
+    return;
+  }
+
+  let html = "<table><tr><th>月</th><th>収入</th><th>経費</th><th>利益</th></tr>";
+  months.forEach(m => {
+    const income = monthly[m].income;
+    const expense = monthly[m].expense;
+    html += `<tr><td>${m}</td><td>${yen(income)}</td><td>${yen(expense)}</td><td>${yen(income - expense)}</td></tr>`;
+  });
+  html += "</table>";
+
+  document.getElementById("monthlySummary").innerHTML = html;
+}
+
+function updateList() {
   const list = document.getElementById("list");
   list.innerHTML = "";
 
@@ -311,7 +325,7 @@ function updateUI() {
 
     div.innerHTML = `
       <strong>${d.account === "business" ? "事業" : "FX・株"} / ${d.type === "income" ? "収入" : "経費"}：${yen(d.amount)}</strong><br>
-      <span class="small">${d.date} / ${d.category}</span><br>
+      <span class="small">${d.date} / ${d.category || ""}</span><br>
       <span>${d.memo || ""}</span><br>
       ${d.image ? `<img src="${d.image}" onclick="openModal('${d.image}')">` : ""}
       <details>
@@ -330,14 +344,24 @@ function deleteItem(id) {
   saveData();
 }
 
+function csvEscape(value) {
+  const v = String(value ?? "");
+  return `"${v.replace(/"/g, '""')}"`;
+}
+
 function downloadCSV() {
   let csv = "日付,区分,種類,勘定科目,金額,メモ,OCR結果\n";
 
   data.forEach(d => {
-    const ocr = (d.ocrText || "").replace(/\n/g, " ").replace(/,/g, " ");
-    const memo = (d.memo || "").replace(/,/g, " ");
-
-    csv += `${d.date},${d.account === "business" ? "事業" : "FX・株"},${d.type === "income" ? "収入" : "経費"},${d.category},${d.amount},${memo},${ocr}\n`;
+    csv += [
+      d.date,
+      d.account === "business" ? "事業" : "FX・株",
+      d.type === "income" ? "収入" : "経費",
+      d.category,
+      d.amount,
+      d.memo,
+      d.ocrText
+    ].map(csvEscape).join(",") + "\n";
   });
 
   const bom = new Uint8Array([0xEF, 0xBB, 0xBF]);
@@ -347,6 +371,91 @@ function downloadCSV() {
   link.href = URL.createObjectURL(blob);
   link.download = "tax_data.csv";
   link.click();
+}
+
+function parseCSV(text) {
+  const rows = [];
+  let row = [];
+  let cell = "";
+  let inQuotes = false;
+
+  for (let i = 0; i < text.length; i++) {
+    const char = text[i];
+    const next = text[i + 1];
+
+    if (char === '"' && inQuotes && next === '"') {
+      cell += '"';
+      i++;
+    } else if (char === '"') {
+      inQuotes = !inQuotes;
+    } else if (char === "," && !inQuotes) {
+      row.push(cell);
+      cell = "";
+    } else if ((char === "\n" || char === "\r") && !inQuotes) {
+      if (cell || row.length) {
+        row.push(cell);
+        rows.push(row);
+        row = [];
+        cell = "";
+      }
+      if (char === "\r" && next === "\n") i++;
+    } else {
+      cell += char;
+    }
+  }
+
+  if (cell || row.length) {
+    row.push(cell);
+    rows.push(row);
+  }
+
+  return rows;
+}
+
+function importCSV() {
+  const file = document.getElementById("csvFile").files[0];
+
+  if (!file) {
+    alert("CSVファイルを選んでください");
+    return;
+  }
+
+  const reader = new FileReader();
+
+  reader.onload = e => {
+    const text = e.target.result.replace(/^\uFEFF/, "");
+    const rows = parseCSV(text);
+
+    if (rows.length <= 1) {
+      alert("CSVにデータがありません");
+      return;
+    }
+
+    const imported = rows.slice(1).map(r => ({
+      id: Date.now() + Math.random(),
+      date: r[0] || "",
+      account: r[1] === "FX・株" ? "investment" : "business",
+      type: r[2] === "経費" ? "expense" : "income",
+      category: r[3] || "",
+      amount: Number(r[4] || 0),
+      memo: r[5] || "",
+      ocrText: r[6] || "",
+      image: null
+    })).filter(d => d.date && d.amount);
+
+    if (imported.length === 0) {
+      alert("読み込めるデータがありませんでした");
+      return;
+    }
+
+    if (confirm("CSVのデータを追加で読み込みますか？\n既存データは残ります。")) {
+      data = data.concat(imported);
+      saveData();
+      alert("CSVを読み込みました");
+    }
+  };
+
+  reader.readAsText(file, "UTF-8");
 }
 
 function clearData() {
