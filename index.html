@@ -5,46 +5,18 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>確定申告準備アプリ</title>
 <style>
-body {
-  font-family: sans-serif;
-  padding: 16px;
-  background: #f5f5f5;
-}
+body { font-family: sans-serif; padding: 16px; background: #f5f5f5; }
 h1 { font-size: 24px; }
-.card {
-  background: white;
-  padding: 16px;
-  margin-bottom: 16px;
-  border-radius: 12px;
-}
+.card { background: white; padding: 16px; margin-bottom: 16px; border-radius: 12px; }
 input, select, textarea, button {
-  width: 100%;
-  box-sizing: border-box;
-  padding: 12px;
-  margin-top: 8px;
-  font-size: 16px;
+  width: 100%; box-sizing: border-box; padding: 12px; margin-top: 8px; font-size: 16px;
 }
-button {
-  border: none;
-  border-radius: 8px;
-  background: #222;
-  color: white;
-}
-.delete {
-  background: #c0392b;
-}
-.row {
-  border-bottom: 1px solid #ddd;
-  padding: 10px 0;
-}
-.small {
-  color: #666;
-  font-size: 13px;
-}
-.total {
-  font-size: 22px;
-  font-weight: bold;
-}
+button { border: none; border-radius: 8px; background: #222; color: white; }
+.delete { background: #c0392b; }
+.row { border-bottom: 1px solid #ddd; padding: 10px 0; }
+.small { color: #666; font-size: 13px; }
+.total { font-size: 20px; font-weight: bold; }
+.grid { display: grid; grid-template-columns: 1fr; gap: 12px; }
 </style>
 </head>
 
@@ -53,14 +25,24 @@ button {
 <h1>確定申告準備アプリ</h1>
 
 <div class="card">
-  <h3>今年の売上</h3>
-  <p class="total" id="incomeTotal">¥0</p>
+  <h2>全体合計</h2>
+  <p>売上・収入</p><p class="total" id="allIncome">¥0</p>
+  <p>経費</p><p class="total" id="allExpense">¥0</p>
+  <p>利益</p><p class="total" id="allProfit">¥0</p>
+</div>
 
-  <h3>今年の経費</h3>
-  <p class="total" id="expenseTotal">¥0</p>
+<div class="card">
+  <h2>事業</h2>
+  <p>売上</p><p class="total" id="businessIncome">¥0</p>
+  <p>経費</p><p class="total" id="businessExpense">¥0</p>
+  <p>利益</p><p class="total" id="businessProfit">¥0</p>
+</div>
 
-  <h3>今年の利益</h3>
-  <p class="total" id="profit">¥0</p>
+<div class="card">
+  <h2>FX・株</h2>
+  <p>収入</p><p class="total" id="investmentIncome">¥0</p>
+  <p>経費</p><p class="total" id="investmentExpense">¥0</p>
+  <p>利益</p><p class="total" id="investmentProfit">¥0</p>
 </div>
 
 <div class="card">
@@ -70,8 +52,14 @@ button {
   <input type="date" id="date">
 
   <label>区分</label>
+  <select id="account">
+    <option value="business">事業</option>
+    <option value="investment">FX・株</option>
+  </select>
+
+  <label>種類</label>
   <select id="type">
-    <option value="income">収入</option>
+    <option value="income">売上・収入</option>
     <option value="expense">経費</option>
   </select>
 
@@ -86,13 +74,18 @@ button {
     <option>水道光熱費</option>
     <option>地代家賃</option>
     <option>雑費</option>
+    <option>FX利益</option>
+    <option>株式利益</option>
+    <option>取引手数料</option>
+    <option>投資関連書籍</option>
+    <option>投資ツール代</option>
   </select>
 
   <label>金額</label>
   <input type="number" id="amount" placeholder="例：3000">
 
   <label>メモ</label>
-  <textarea id="memo" placeholder="例：スマホ代、書籍代など"></textarea>
+  <textarea id="memo" placeholder="例：スマホ代、書籍代、FX利益など"></textarea>
 
   <button onclick="addData()">追加</button>
 </div>
@@ -109,11 +102,15 @@ button {
 
 <script>
 let data = JSON.parse(localStorage.getItem("taxData")) || [];
-
 document.getElementById("date").valueAsDate = new Date();
+
+function yen(n) {
+  return "¥" + n.toLocaleString();
+}
 
 function addData() {
   const date = document.getElementById("date").value;
+  const account = document.getElementById("account").value;
   const type = document.getElementById("type").value;
   const category = document.getElementById("category").value;
   const amount = Number(document.getElementById("amount").value);
@@ -124,15 +121,7 @@ function addData() {
     return;
   }
 
-  data.push({
-    id: Date.now(),
-    date,
-    type,
-    category,
-    amount,
-    memo
-  });
-
+  data.push({ id: Date.now(), date, account, type, category, amount, memo });
   saveData();
 
   document.getElementById("amount").value = "";
@@ -144,18 +133,32 @@ function saveData() {
   updateUI();
 }
 
+function calc(account, type) {
+  return data
+    .filter(d => d.account === account && d.type === type)
+    .reduce((sum, d) => sum + d.amount, 0);
+}
+
 function updateUI() {
-  let income = 0;
-  let expense = 0;
+  const businessIncome = calc("business", "income");
+  const businessExpense = calc("business", "expense");
+  const investmentIncome = calc("investment", "income");
+  const investmentExpense = calc("investment", "expense");
 
-  data.forEach(d => {
-    if (d.type === "income") income += d.amount;
-    if (d.type === "expense") expense += d.amount;
-  });
+  const allIncome = businessIncome + investmentIncome;
+  const allExpense = businessExpense + investmentExpense;
 
-  document.getElementById("incomeTotal").innerText = "¥" + income.toLocaleString();
-  document.getElementById("expenseTotal").innerText = "¥" + expense.toLocaleString();
-  document.getElementById("profit").innerText = "¥" + (income - expense).toLocaleString();
+  document.getElementById("businessIncome").innerText = yen(businessIncome);
+  document.getElementById("businessExpense").innerText = yen(businessExpense);
+  document.getElementById("businessProfit").innerText = yen(businessIncome - businessExpense);
+
+  document.getElementById("investmentIncome").innerText = yen(investmentIncome);
+  document.getElementById("investmentExpense").innerText = yen(investmentExpense);
+  document.getElementById("investmentProfit").innerText = yen(investmentIncome - investmentExpense);
+
+  document.getElementById("allIncome").innerText = yen(allIncome);
+  document.getElementById("allExpense").innerText = yen(allExpense);
+  document.getElementById("allProfit").innerText = yen(allIncome - allExpense);
 
   const list = document.getElementById("list");
   list.innerHTML = "";
@@ -168,14 +171,12 @@ function updateUI() {
   data.slice().reverse().forEach(d => {
     const div = document.createElement("div");
     div.className = "row";
-
     div.innerHTML = `
-      <strong>${d.type === "income" ? "収入" : "経費"}：¥${d.amount.toLocaleString()}</strong><br>
+      <strong>${d.account === "business" ? "事業" : "FX・株"} / ${d.type === "income" ? "収入" : "経費"}：${yen(d.amount)}</strong><br>
       <span class="small">${d.date} / ${d.category}</span><br>
       <span>${d.memo || ""}</span>
       <button class="delete" onclick="deleteItem(${d.id})">削除</button>
     `;
-
     list.appendChild(div);
   });
 }
@@ -186,10 +187,10 @@ function deleteItem(id) {
 }
 
 function downloadCSV() {
-  let csv = "日付,区分,勘定科目,金額,メモ\n";
+  let csv = "日付,区分,種類,勘定科目,金額,メモ\n";
 
   data.forEach(d => {
-    csv += `${d.date},${d.type === "income" ? "収入" : "経費"},${d.category},${d.amount},${d.memo}\n`;
+    csv += `${d.date},${d.account === "business" ? "事業" : "FX・株"},${d.type === "income" ? "収入" : "経費"},${d.category},${d.amount},${d.memo}\n`;
   });
 
   const bom = new Uint8Array([0xEF, 0xBB, 0xBF]);
