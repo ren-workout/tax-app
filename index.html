@@ -4,22 +4,46 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>確定申告準備アプリ</title>
-
 <style>
 body {
   font-family: sans-serif;
-  padding: 20px;
+  padding: 16px;
   background: #f5f5f5;
 }
+h1 { font-size: 24px; }
 .card {
   background: white;
-  padding: 15px;
-  margin-bottom: 15px;
-  border-radius: 10px;
+  padding: 16px;
+  margin-bottom: 16px;
+  border-radius: 12px;
+}
+input, select, textarea, button {
+  width: 100%;
+  box-sizing: border-box;
+  padding: 12px;
+  margin-top: 8px;
+  font-size: 16px;
 }
 button {
-  padding: 10px;
-  margin-top: 10px;
+  border: none;
+  border-radius: 8px;
+  background: #222;
+  color: white;
+}
+.delete {
+  background: #c0392b;
+}
+.row {
+  border-bottom: 1px solid #ddd;
+  padding: 10px 0;
+}
+.small {
+  color: #666;
+  font-size: 13px;
+}
+.total {
+  font-size: 22px;
+  font-weight: bold;
 }
 </style>
 </head>
@@ -30,51 +54,93 @@ button {
 
 <div class="card">
   <h3>今年の売上</h3>
-  <p id="incomeTotal">¥0</p>
+  <p class="total" id="incomeTotal">¥0</p>
 
   <h3>今年の経費</h3>
-  <p id="expenseTotal">¥0</p>
+  <p class="total" id="expenseTotal">¥0</p>
 
   <h3>今年の利益</h3>
-  <p id="profit">¥0</p>
+  <p class="total" id="profit">¥0</p>
 </div>
 
 <div class="card">
   <h2>入力</h2>
 
-  <input type="date" id="date"><br><br>
+  <label>日付</label>
+  <input type="date" id="date">
 
-  <input type="number" id="amount" placeholder="金額"><br><br>
-
+  <label>区分</label>
   <select id="type">
     <option value="income">収入</option>
     <option value="expense">経費</option>
-  </select><br><br>
+  </select>
+
+  <label>勘定科目</label>
+  <select id="category">
+    <option>売上</option>
+    <option>通信費</option>
+    <option>消耗品費</option>
+    <option>交通費</option>
+    <option>会議費</option>
+    <option>接待交際費</option>
+    <option>水道光熱費</option>
+    <option>地代家賃</option>
+    <option>雑費</option>
+  </select>
+
+  <label>金額</label>
+  <input type="number" id="amount" placeholder="例：3000">
+
+  <label>メモ</label>
+  <textarea id="memo" placeholder="例：スマホ代、書籍代など"></textarea>
 
   <button onclick="addData()">追加</button>
 </div>
 
 <div class="card">
+  <h2>データ一覧</h2>
+  <div id="list"></div>
+</div>
+
+<div class="card">
   <button onclick="downloadCSV()">CSVダウンロード</button>
-  <button onclick="clearData()">データ削除</button>
+  <button class="delete" onclick="clearData()">全データ削除</button>
 </div>
 
 <script>
 let data = JSON.parse(localStorage.getItem("taxData")) || [];
 
+document.getElementById("date").valueAsDate = new Date();
+
 function addData() {
   const date = document.getElementById("date").value;
-  const amount = Number(document.getElementById("amount").value);
   const type = document.getElementById("type").value;
+  const category = document.getElementById("category").value;
+  const amount = Number(document.getElementById("amount").value);
+  const memo = document.getElementById("memo").value;
 
   if (!date || !amount) {
-    alert("入力してください");
+    alert("日付と金額を入力してください");
     return;
   }
 
-  data.push({ date, amount, type });
-  localStorage.setItem("taxData", JSON.stringify(data));
+  data.push({
+    id: Date.now(),
+    date,
+    type,
+    category,
+    amount,
+    memo
+  });
 
+  saveData();
+
+  document.getElementById("amount").value = "";
+  document.getElementById("memo").value = "";
+}
+
+function saveData() {
+  localStorage.setItem("taxData", JSON.stringify(data));
   updateUI();
 }
 
@@ -87,18 +153,48 @@ function updateUI() {
     if (d.type === "expense") expense += d.amount;
   });
 
-  document.getElementById("incomeTotal").innerText = "¥" + income;
-  document.getElementById("expenseTotal").innerText = "¥" + expense;
-  document.getElementById("profit").innerText = "¥" + (income - expense);
+  document.getElementById("incomeTotal").innerText = "¥" + income.toLocaleString();
+  document.getElementById("expenseTotal").innerText = "¥" + expense.toLocaleString();
+  document.getElementById("profit").innerText = "¥" + (income - expense).toLocaleString();
+
+  const list = document.getElementById("list");
+  list.innerHTML = "";
+
+  if (data.length === 0) {
+    list.innerHTML = "<p>まだデータがありません。</p>";
+    return;
+  }
+
+  data.slice().reverse().forEach(d => {
+    const div = document.createElement("div");
+    div.className = "row";
+
+    div.innerHTML = `
+      <strong>${d.type === "income" ? "収入" : "経費"}：¥${d.amount.toLocaleString()}</strong><br>
+      <span class="small">${d.date} / ${d.category}</span><br>
+      <span>${d.memo || ""}</span>
+      <button class="delete" onclick="deleteItem(${d.id})">削除</button>
+    `;
+
+    list.appendChild(div);
+  });
+}
+
+function deleteItem(id) {
+  data = data.filter(d => d.id !== id);
+  saveData();
 }
 
 function downloadCSV() {
-  let csv = "日付,金額,区分\n";
+  let csv = "日付,区分,勘定科目,金額,メモ\n";
+
   data.forEach(d => {
-    csv += `${d.date},${d.amount},${d.type}\n`;
+    csv += `${d.date},${d.type === "income" ? "収入" : "経費"},${d.category},${d.amount},${d.memo}\n`;
   });
 
-  const blob = new Blob([csv], { type: "text/csv" });
+  const bom = new Uint8Array([0xEF, 0xBB, 0xBF]);
+  const blob = new Blob([bom, csv], { type: "text/csv" });
+
   const link = document.createElement("a");
   link.href = URL.createObjectURL(blob);
   link.download = "tax_data.csv";
@@ -106,9 +202,11 @@ function downloadCSV() {
 }
 
 function clearData() {
-  localStorage.removeItem("taxData");
-  data = [];
-  updateUI();
+  if (confirm("全データを削除しますか？")) {
+    localStorage.removeItem("taxData");
+    data = [];
+    updateUI();
+  }
 }
 
 updateUI();
