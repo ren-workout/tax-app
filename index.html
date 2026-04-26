@@ -1,0 +1,118 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>確定申告準備アプリ</title>
+
+<style>
+body {
+  font-family: sans-serif;
+  padding: 20px;
+  background: #f5f5f5;
+}
+.card {
+  background: white;
+  padding: 15px;
+  margin-bottom: 15px;
+  border-radius: 10px;
+}
+button {
+  padding: 10px;
+  margin-top: 10px;
+}
+</style>
+</head>
+
+<body>
+
+<h1>確定申告準備アプリ</h1>
+
+<div class="card">
+  <h3>今年の売上</h3>
+  <p id="incomeTotal">¥0</p>
+
+  <h3>今年の経費</h3>
+  <p id="expenseTotal">¥0</p>
+
+  <h3>今年の利益</h3>
+  <p id="profit">¥0</p>
+</div>
+
+<div class="card">
+  <h2>入力</h2>
+
+  <input type="date" id="date"><br><br>
+
+  <input type="number" id="amount" placeholder="金額"><br><br>
+
+  <select id="type">
+    <option value="income">収入</option>
+    <option value="expense">経費</option>
+  </select><br><br>
+
+  <button onclick="addData()">追加</button>
+</div>
+
+<div class="card">
+  <button onclick="downloadCSV()">CSVダウンロード</button>
+  <button onclick="clearData()">データ削除</button>
+</div>
+
+<script>
+let data = JSON.parse(localStorage.getItem("taxData")) || [];
+
+function addData() {
+  const date = document.getElementById("date").value;
+  const amount = Number(document.getElementById("amount").value);
+  const type = document.getElementById("type").value;
+
+  if (!date || !amount) {
+    alert("入力してください");
+    return;
+  }
+
+  data.push({ date, amount, type });
+  localStorage.setItem("taxData", JSON.stringify(data));
+
+  updateUI();
+}
+
+function updateUI() {
+  let income = 0;
+  let expense = 0;
+
+  data.forEach(d => {
+    if (d.type === "income") income += d.amount;
+    if (d.type === "expense") expense += d.amount;
+  });
+
+  document.getElementById("incomeTotal").innerText = "¥" + income;
+  document.getElementById("expenseTotal").innerText = "¥" + expense;
+  document.getElementById("profit").innerText = "¥" + (income - expense);
+}
+
+function downloadCSV() {
+  let csv = "日付,金額,区分\n";
+  data.forEach(d => {
+    csv += `${d.date},${d.amount},${d.type}\n`;
+  });
+
+  const blob = new Blob([csv], { type: "text/csv" });
+  const link = document.createElement("a");
+  link.href = URL.createObjectURL(blob);
+  link.download = "tax_data.csv";
+  link.click();
+}
+
+function clearData() {
+  localStorage.removeItem("taxData");
+  data = [];
+  updateUI();
+}
+
+updateUI();
+</script>
+
+</body>
+</html>
