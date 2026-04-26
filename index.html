@@ -471,7 +471,56 @@ function clearData() {
     updateUI();
   }
 }
+function downloadJSON() {
+  const backup = {
+    app: "tax-app",
+    version: 1,
+    createdAt: new Date().toISOString(),
+    data: data
+  };
 
+  const json = JSON.stringify(backup, null, 2);
+  const blob = new Blob([json], { type: "application/json" });
+
+  const link = document.createElement("a");
+  link.href = URL.createObjectURL(blob);
+  link.download = "tax_app_backup.json";
+  link.click();
+}
+
+function importJSON() {
+  const file = document.getElementById("jsonFile").files[0];
+
+  if (!file) {
+    alert("バックアップファイルを選んでください");
+    return;
+  }
+
+  const reader = new FileReader();
+
+  reader.onload = e => {
+    try {
+      const backup = JSON.parse(e.target.result);
+
+      if (!backup.data || !Array.isArray(backup.data)) {
+        alert("正しいバックアップファイルではありません");
+        return;
+      }
+
+      if (confirm("バックアップを復元しますか？\n現在のデータは上書きされます。")) {
+        data = backup.data;
+        localStorage.setItem("taxData", JSON.stringify(data));
+        updateUI();
+        alert("バックアップを復元しました");
+      }
+
+    } catch (error) {
+      alert("バックアップファイルを読み込めませんでした");
+    }
+  };
+
+  reader.readAsText(file, "UTF-8");
+}
 function openModal(src) {
   document.getElementById("modal").style.display = "flex";
   document.getElementById("modalImg").src = src;
