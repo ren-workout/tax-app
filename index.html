@@ -3,58 +3,119 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>確定申告準備アプリ</title>
+<title>確定申告準備アプリ OCR版</title>
+
+<script src="https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js"></script>
 
 <style>
 body { font-family: sans-serif; padding: 16px; background: #f5f5f5; }
 .card { background: white; padding: 16px; margin-bottom: 16px; border-radius: 12px; }
 input, select, textarea, button {
-  width: 100%; padding: 12px; margin-top: 8px;
+  width: 100%;
+  box-sizing: border-box;
+  padding: 12px;
+  margin-top: 8px;
+  font-size: 16px;
 }
 button { background: #222; color: white; border: none; border-radius: 8px; }
 .delete { background: #c0392b; }
-img { width: 80px; margin-top: 5px; border-radius: 6px; }
-.modal {
-  display:none; position:fixed; top:0; left:0;
-  width:100%; height:100%; background:rgba(0,0,0,0.8);
-  justify-content:center; align-items:center;
+img { width: 90px; margin-top: 8px; border-radius: 6px; }
+.small { color: #666; font-size: 13px; }
+.total { font-size: 20px; font-weight: bold; }
+.row { border-bottom: 1px solid #ddd; padding: 10px 0; }
+.ocrbox {
+  white-space: pre-wrap;
+  background: #eee;
+  padding: 10px;
+  border-radius: 8px;
+  font-size: 13px;
 }
-.modal img { width:90%; }
+.modal {
+  display:none;
+  position:fixed;
+  top:0; left:0;
+  width:100%; height:100%;
+  background:rgba(0,0,0,0.8);
+  justify-content:center;
+  align-items:center;
+  z-index: 10;
+}
+.modal img { width:90%; max-height:90%; object-fit:contain; }
 </style>
 </head>
 
 <body>
 
-<h1>確定申告準備アプリ</h1>
+<h1>確定申告準備アプリ OCR版</h1>
+
+<div class="card">
+  <h2>全体合計</h2>
+  <p>売上・収入</p><p class="total" id="allIncome">¥0</p>
+  <p>経費</p><p class="total" id="allExpense">¥0</p>
+  <p>利益</p><p class="total" id="allProfit">¥0</p>
+</div>
 
 <div class="card">
   <h2>入力</h2>
 
+  <label>日付</label>
   <input type="date" id="date">
 
+  <label>区分</label>
   <select id="account">
     <option value="business">事業</option>
     <option value="investment">FX・株</option>
   </select>
 
+  <label>種類</label>
   <select id="type">
-    <option value="income">収入</option>
+    <option value="income">売上・収入</option>
     <option value="expense">経費</option>
   </select>
 
-  <input type="number" id="amount" placeholder="金額">
+  <label>勘定科目</label>
+  <select id="category">
+    <option>売上</option>
+    <option>通信費</option>
+    <option>消耗品費</option>
+    <option>交通費</option>
+    <option>会議費</option>
+    <option>接待交際費</option>
+    <option>水道光熱費</option>
+    <option>地代家賃</option>
+    <option>雑費</option>
+    <option>FX利益</option>
+    <option>株式利益</option>
+    <option>取引手数料</option>
+    <option>投資関連書籍</option>
+    <option>投資ツール代</option>
+  </select>
 
-  <textarea id="memo" placeholder="メモ"></textarea>
+  <label>金額</label>
+  <input type="number" id="amount" placeholder="例：3000">
+
+  <label>メモ</label>
+  <textarea id="memo" placeholder="例：スマホ代、書籍代など"></textarea>
 
   <label>レシート画像</label>
   <input type="file" id="image" accept="image/*">
+
+  <button onclick="readReceipt()">レシートを読み取る</button>
+
+  <p class="small">OCR結果</p>
+  <div class="ocrbox" id="ocrResult">まだ読み取っていません。</div>
 
   <button onclick="addData()">追加</button>
 </div>
 
 <div class="card">
-  <h2>一覧</h2>
+  <h2>データ一覧</h2>
   <div id="list"></div>
+</div>
+
+<div class="card">
+  <button onclick="downloadCSV()">CSVダウンロード</button>
+  <button class="delete" onclick="clearData()">全データ削除</button>
 </div>
 
 <div class="modal" id="modal" onclick="closeModal()">
@@ -63,66 +124,201 @@ img { width: 80px; margin-top: 5px; border-radius: 6px; }
 
 <script>
 let data = JSON.parse(localStorage.getItem("taxData")) || [];
+let currentImageData = null;
+let currentOcrText = "";
+
+document.getElementById("date").valueAsDate = new Date();
+
+function yen(n) {
+  return "¥" + n.toLocaleString();
+}
 
 function resizeImage(file) {
   return new Promise(resolve => {
     const reader = new FileReader();
+
     reader.onload = e => {
       const img = new Image();
+
       img.onload = () => {
         const canvas = document.createElement("canvas");
         const ctx = canvas.getContext("2d");
 
-        const maxWidth = 600;
+        const maxWidth = 800;
         const scale = maxWidth / img.width;
 
         canvas.width = maxWidth;
         canvas.height = img.height * scale;
 
         ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
-        resolve(canvas.toDataURL("image/jpeg", 0.7));
+
+        resolve(canvas.toDataURL("image/jpeg", 0.75));
       };
+
       img.src = e.target.result;
     };
+
     reader.readAsDataURL(file);
   });
 }
 
+async function readReceipt() {
+  const file = document.getElementById("image").files[0];
+
+  if (!file) {
+    alert("レシート画像を選んでください");
+    return;
+  }
+
+  document.getElementById("ocrResult").innerText = "読み取り中です。少し待ってください…";
+
+  currentImageData = await resizeImage(file);
+
+  const result = await Tesseract.recognize(
+    currentImageData,
+    "jpn+eng",
+    {
+      logger: m => {
+        if (m.status === "recognizing text") {
+          const progress = Math.round(m.progress * 100);
+          document.getElementById("ocrResult").innerText = "読み取り中… " + progress + "%";
+        }
+      }
+    }
+  );
+
+  currentOcrText = result.data.text;
+  document.getElementById("ocrResult").innerText = currentOcrText || "文字を読み取れませんでした。";
+
+  const amount = guessAmount(currentOcrText);
+  if (amount) {
+    document.getElementById("amount").value = amount;
+  }
+}
+
+function guessAmount(text) {
+  const lines = text.split("\n");
+  let candidates = [];
+
+  lines.forEach(line => {
+    if (
+      line.includes("合計") ||
+      line.includes("総計") ||
+      line.includes("お買上") ||
+      line.includes("税込") ||
+      line.includes("現計")
+    ) {
+      const nums = line.match(/[0-9,]{2,}/g);
+      if (nums) {
+        nums.forEach(n => {
+          candidates.push(Number(n.replace(/,/g, "")));
+        });
+      }
+    }
+  });
+
+  if (candidates.length === 0) {
+    const nums = text.match(/[0-9,]{3,}/g);
+    if (nums) {
+      nums.forEach(n => candidates.push(Number(n.replace(/,/g, ""))));
+    }
+  }
+
+  candidates = candidates.filter(n => n > 0 && n < 10000000);
+
+  if (candidates.length === 0) return "";
+
+  return Math.max(...candidates);
+}
+
 async function addData() {
   const file = document.getElementById("image").files[0];
-  let imgData = null;
 
-  if (file) {
-    imgData = await resizeImage(file);
+  if (file && !currentImageData) {
+    currentImageData = await resizeImage(file);
+  }
+
+  const date = document.getElementById("date").value;
+  const account = document.getElementById("account").value;
+  const type = document.getElementById("type").value;
+  const category = document.getElementById("category").value;
+  const amount = Number(document.getElementById("amount").value);
+  const memo = document.getElementById("memo").value;
+
+  if (!date || !amount) {
+    alert("日付と金額を入力してください");
+    return;
   }
 
   data.push({
     id: Date.now(),
-    date: document.getElementById("date").value,
-    account: document.getElementById("account").value,
-    type: document.getElementById("type").value,
-    amount: Number(document.getElementById("amount").value),
-    memo: document.getElementById("memo").value,
-    image: imgData
+    date,
+    account,
+    type,
+    category,
+    amount,
+    memo,
+    image: currentImageData,
+    ocrText: currentOcrText
   });
 
+  saveData();
+
+  document.getElementById("amount").value = "";
+  document.getElementById("memo").value = "";
+  document.getElementById("image").value = "";
+  document.getElementById("ocrResult").innerText = "まだ読み取っていません。";
+
+  currentImageData = null;
+  currentOcrText = "";
+}
+
+function saveData() {
   localStorage.setItem("taxData", JSON.stringify(data));
   updateUI();
 }
 
+function calc(account, type) {
+  return data
+    .filter(d => d.account === account && d.type === type)
+    .reduce((sum, d) => sum + d.amount, 0);
+}
+
 function updateUI() {
+  const businessIncome = calc("business", "income");
+  const businessExpense = calc("business", "expense");
+  const investmentIncome = calc("investment", "income");
+  const investmentExpense = calc("investment", "expense");
+
+  const allIncome = businessIncome + investmentIncome;
+  const allExpense = businessExpense + investmentExpense;
+
+  document.getElementById("allIncome").innerText = yen(allIncome);
+  document.getElementById("allExpense").innerText = yen(allExpense);
+  document.getElementById("allProfit").innerText = yen(allIncome - allExpense);
+
   const list = document.getElementById("list");
   list.innerHTML = "";
 
+  if (data.length === 0) {
+    list.innerHTML = "<p>まだデータがありません。</p>";
+    return;
+  }
+
   data.slice().reverse().forEach(d => {
     const div = document.createElement("div");
+    div.className = "row";
 
     div.innerHTML = `
-      <p>${d.date} / ¥${d.amount}</p>
-      <p>${d.memo || ""}</p>
+      <strong>${d.account === "business" ? "事業" : "FX・株"} / ${d.type === "income" ? "収入" : "経費"}：${yen(d.amount)}</strong><br>
+      <span class="small">${d.date} / ${d.category}</span><br>
+      <span>${d.memo || ""}</span><br>
       ${d.image ? `<img src="${d.image}" onclick="openModal('${d.image}')">` : ""}
+      <details>
+        <summary>OCR結果を見る</summary>
+        <div class="ocrbox">${d.ocrText || "OCRなし"}</div>
+      </details>
       <button class="delete" onclick="deleteItem(${d.id})">削除</button>
-      <hr>
     `;
 
     list.appendChild(div);
@@ -131,8 +327,34 @@ function updateUI() {
 
 function deleteItem(id) {
   data = data.filter(d => d.id !== id);
-  localStorage.setItem("taxData", JSON.stringify(data));
-  updateUI();
+  saveData();
+}
+
+function downloadCSV() {
+  let csv = "日付,区分,種類,勘定科目,金額,メモ,OCR結果\n";
+
+  data.forEach(d => {
+    const ocr = (d.ocrText || "").replace(/\n/g, " ").replace(/,/g, " ");
+    const memo = (d.memo || "").replace(/,/g, " ");
+
+    csv += `${d.date},${d.account === "business" ? "事業" : "FX・株"},${d.type === "income" ? "収入" : "経費"},${d.category},${d.amount},${memo},${ocr}\n`;
+  });
+
+  const bom = new Uint8Array([0xEF, 0xBB, 0xBF]);
+  const blob = new Blob([bom, csv], { type: "text/csv" });
+
+  const link = document.createElement("a");
+  link.href = URL.createObjectURL(blob);
+  link.download = "tax_data.csv";
+  link.click();
+}
+
+function clearData() {
+  if (confirm("全データを削除しますか？")) {
+    localStorage.removeItem("taxData");
+    data = [];
+    updateUI();
+  }
 }
 
 function openModal(src) {
