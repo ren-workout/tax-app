@@ -90,6 +90,14 @@ details.card .row button {
 input, select, textarea {
   min-height: 38px;
 }  
+.form-row {
+  display: flex;
+  gap: 8px;
+}
+
+.form-row > * {
+  flex: 1;
+}  
 </style>
 </head>
 
@@ -109,21 +117,26 @@ input, select, textarea {
 <div class="card">
 <h2>入力</h2>
 
-<input type="date" id="date">
+<div class="form-row">
+  <input type="date" id="date">
+  <select id="account">
+    <option value="business">事業</option>
+    <option value="investment">FX・株</option>
+  </select>
+</div>
 
-<select id="account">
-<option value="business">事業</option>
-<option value="investment">FX・株</option>
-</select>
+<div class="form-row">
+  <select id="type">
+    <option value="income">収入</option>
+    <option value="expense">経費</option>
+  </select>
+  <input type="text" id="category" placeholder="カテゴリ">
+</div>
 
-<select id="type">
-<option value="income">収入</option>
-<option value="expense">経費</option>
-</select>
-
-<input type="text" id="category" placeholder="カテゴリ">
-<input type="number" id="amount" placeholder="金額">
-<textarea id="memo" placeholder="メモ"></textarea>
+<div class="form-row">
+  <input type="number" id="amount" placeholder="金額">
+  <input type="text" id="memo" placeholder="メモ">
+</div>
 
 <input type="file" id="image" accept="image/*">
 <button onclick="readReceipt()">レシート読み取り</button>
