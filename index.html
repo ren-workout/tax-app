@@ -308,6 +308,7 @@ function updateUI() {
   document.getElementById("allProfit").innerText = yen(allIncome - allExpense);
 
   updateSummary();
+  updateProfitChart();
   updateList();
 }
 
@@ -382,7 +383,75 @@ function updateSummary() {
   renderSummary("yearlySummary", "year");
   renderSummary("monthlySummary", "month");
 }
+function updateProfitChart() {
+  const summary = makeSummary("month");
+  const months = Object.keys(summary).sort();
 
+  const labels = [];
+  const businessData = [];
+  const investmentData = [];
+  const totalData = [];
+
+  months.forEach(month => {
+    const s = summary[month];
+
+    const businessProfit = s.businessIncome - s.businessExpense;
+    const investmentProfit = s.investmentIncome - s.investmentExpense;
+    const totalProfit = businessProfit + investmentProfit;
+
+    labels.push(month);
+    businessData.push(businessProfit);
+    investmentData.push(investmentProfit);
+    totalData.push(totalProfit);
+  });
+
+  const canvas = document.getElementById("profitChart");
+  if (!canvas) return;
+
+  const ctx = canvas.getContext("2d");
+
+  if (profitChart) {
+    profitChart.destroy();
+  }
+
+  profitChart = new Chart(ctx, {
+    type: "line",
+    data: {
+      labels: labels,
+      datasets: [
+        {
+          label: "事業利益",
+          data: businessData
+        },
+        {
+          label: "FX・株利益",
+          data: investmentData
+        },
+        {
+          label: "全体利益",
+          data: totalData
+        }
+      ]
+    },
+    options: {
+      responsive: true,
+      plugins: {
+        legend: {
+          position: "bottom"
+        }
+      },
+      scales: {
+        y: {
+          ticks: {
+            callback: function(value) {
+              return "¥" + value.toLocaleString();
+            }
+          }
+        }
+      }
+    }
+  });
+}
 function updateList() {
   const list = document.getElementById("list");
   list.innerHTML = "";
