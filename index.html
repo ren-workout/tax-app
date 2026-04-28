@@ -108,10 +108,10 @@ th:first-child, td:first-child { text-align: left; }
 <button onclick="addData()">追加</button>
 </div>
 
-<div class="card">
-<h2>データ一覧</h2>
-<div id="list"></div>
-</div>
+<details class="card" open>
+  <summary><strong>データ一覧</strong></summary>
+  <div id="list"></div>
+</details>
 <script>
 
 let data = JSON.parse(localStorage.getItem("taxData")) || [];
