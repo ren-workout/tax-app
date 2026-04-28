@@ -146,7 +146,7 @@ input:focus, select:focus, textarea:focus {
   
 <canvas id="profitChart"></canvas>
 </div>
-<div class="card">
+<div id="dashboard" class="card">
   <h2>年間サマリー</h2>
   <div id="yearSummary"></div>
 </div>
@@ -212,7 +212,16 @@ function addData() {
   saveData();
   updateUI();
 }
+function showTab(tabName) {
+  document.getElementById("dashboard").style.display = "none";
+  document.getElementById("input").style.display = "none";
+  document.getElementById("data").style.display = "none";
 
+  document.getElementById(tabName).style.display = "block";
+}
+
+// 最初はグラフ表示
+showTab("dashboard");
 function updateUI() {
   updateList();
   updateChart();
