@@ -146,7 +146,7 @@ th:first-child, td:first-child { text-align: left; }
 let data = JSON.parse(localStorage.getItem("taxData")) || [];
 let currentImageData = null;
 let currentOcrText = "";
-
+let editingId = null;
 document.getElementById("date").valueAsDate = new Date();
 
 function yen(n) {
@@ -471,6 +471,43 @@ function clearData() {
     data = [];
     updateUI();
   }
+}
+  function editItem(id) {
+  const item = data.find(d => d.id === id);
+  if (!item) return;
+
+  editingId = id;
+
+  document.getElementById("date").value = item.date;
+  document.getElementById("account").value = item.account;
+  document.getElementById("type").value = item.type;
+  document.getElementById("category").value = item.category;
+  document.getElementById("amount").value = item.amount;
+  document.getElementById("memo").value = item.memo || "";
+  document.getElementById("ocrResult").innerText = item.ocrText || "OCRなし";
+
+  currentImageData = item.image || null;
+  currentOcrText = item.ocrText || "";
+
+  document.getElementById("saveButton").innerText = "更新";
+  document.getElementById("cancelEditButton").style.display = "block";
+
+  window.scrollTo({ top: 0, behavior: "smooth" });
+}
+
+function cancelEdit() {
+  editingId = null;
+
+  document.getElementById("amount").value = "";
+  document.getElementById("memo").value = "";
+  document.getElementById("image").value = "";
+  document.getElementById("ocrResult").innerText = "まだ読み取っていません。";
+
+  currentImageData = null;
+  currentOcrText = "";
+
+  document.getElementById("saveButton").innerText = "追加";
+  document.getElementById("cancelEditButton").style.display = "none";
 }
 function downloadJSON() {
   const backup = {
