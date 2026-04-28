@@ -6,6 +6,7 @@
 <title>確定申告準備アプリ</title>
 
 <script src="https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 
 <style>
 body { font-family: sans-serif; padding: 16px; background: #f5f5f5; }
@@ -29,11 +30,6 @@ img { width: 90px; margin-top: 8px; border-radius: 6px; }
 table { width: 100%; border-collapse: collapse; font-size: 14px; }
 th, td { border-bottom: 1px solid #ddd; padding: 8px; text-align: right; }
 th:first-child, td:first-child { text-align: left; }
-.modal {
-  display:none; position:fixed; top:0; left:0; width:100%; height:100%;
-  background:rgba(0,0,0,0.8); justify-content:center; align-items:center; z-index:10;
-}
-.modal img { width:90%; max-height:90%; object-fit:contain; }
 </style>
 </head>
 
@@ -42,596 +38,154 @@ th:first-child, td:first-child { text-align: left; }
 <h1>確定申告準備アプリ</h1>
 
 <div class="card">
-  <h2>全体合計</h2>
-  <p>売上・収入</p><p class="total" id="allIncome">¥0</p>
-  <p>経費</p><p class="total" id="allExpense">¥0</p>
-  <p>利益</p><p class="total" id="allProfit">¥0</p>
+<h2>月別利益グラフ</h2>
+<canvas id="profitChart"></canvas>
 </div>
 
 <div class="card">
-  <h2>事業</h2>
-  <p>売上</p><p class="total" id="businessIncome">¥0</p>
-  <p>経費</p><p class="total" id="businessExpense">¥0</p>
-  <p>利益</p><p class="total" id="businessProfit">¥0</p>
+<h2>入力</h2>
+
+<input type="date" id="date">
+
+<select id="account">
+<option value="business">事業</option>
+<option value="investment">FX・株</option>
+</select>
+
+<select id="type">
+<option value="income">収入</option>
+<option value="expense">経費</option>
+</select>
+
+<input type="text" id="category" placeholder="カテゴリ">
+<input type="number" id="amount" placeholder="金額">
+<textarea id="memo" placeholder="メモ"></textarea>
+
+<input type="file" id="image" accept="image/*">
+<button onclick="readReceipt()">レシート読み取り</button>
+
+<div id="ocrResult"></div>
+
+<button onclick="addData()">追加</button>
 </div>
 
 <div class="card">
-  <h2>FX・株</h2>
-  <p>収入</p><p class="total" id="investmentIncome">¥0</p>
-  <p>経費</p><p class="total" id="investmentExpense">¥0</p>
-  <p>利益</p><p class="total" id="investmentProfit">¥0</p>
+<h2>データ一覧</h2>
+<div id="list"></div>
 </div>
-
-<div class="card">
-  <h2>年別集計</h2>
-  <div id="yearlySummary"></div>
-</div>
-
-<div class="card">
-  <h2>月別集計</h2>
-  <div id="monthlySummary"></div>
-</div>
-
-<div class="card">
-  <h2>入力</h2>
-
-  <label>日付</label>
-  <input type="date" id="date">
-
-  <label>区分</label>
-  <select id="account">
-    <option value="business">事業</option>
-    <option value="investment">FX・株</option>
-  </select>
-
-  <label>種類</label>
-  <select id="type">
-    <option value="income">売上・収入</option>
-    <option value="expense">経費</option>
-  </select>
-
-  <label>勘定科目</label>
-  <select id="category">
-    <option>売上</option>
-    <option>通信費</option>
-    <option>消耗品費</option>
-    <option>交通費</option>
-    <option>会議費</option>
-    <option>接待交際費</option>
-    <option>水道光熱費</option>
-    <option>地代家賃</option>
-    <option>雑費</option>
-    <option>FX利益</option>
-    <option>株式利益</option>
-    <option>取引手数料</option>
-    <option>投資関連書籍</option>
-    <option>投資ツール代</option>
-  </select>
-
-  <label>金額</label>
-  <input type="number" id="amount" placeholder="例：3000">
-
-  <label>メモ</label>
-  <textarea id="memo" placeholder="例：スマホ代、書籍代など"></textarea>
-
-  <label>レシート画像</label>
-  <input type="file" id="image" accept="image/*">
-
-  <button class="sub" onclick="readReceipt()">レシートを読み取る</button>
-
-  <p class="small">OCR結果</p>
-  <div class="ocrbox" id="ocrResult">まだ読み取っていません。</div>
-
-  <button id="saveButton" onclick="addData()">追加</button>
-  <button id="cancelEditButton" class="sub" onclick="cancelEdit()" style="display:none;">編集キャンセル</button>
-</div>
-
-<div class="card">
-  <h2>データ一覧</h2>
-  <div id="list"></div>
-</div>
-
-<div class="card">
-  <h2>バックアップ</h2>
-  <button onclick="downloadCSV()">CSVダウンロード</button>
-  <button onclick="downloadJSON()">完全バックアップ作成</button>
-
-  <label>完全バックアップから復元</label>
-  <input type="file" id="jsonFile" accept=".json,application/json">
-  <button class="sub" onclick="importJSON()">完全バックアップを読み込む</button>
-
-  <label>CSVから復元</label>
-  <input type="file" id="csvFile" accept=".csv,text/csv">
-  <button class="sub" onclick="importCSV()">CSVを読み込む</button>
-
-  <button class="delete" onclick="clearData()">全データ削除</button>
-</div>
-
-<div class="modal" id="modal" onclick="closeModal()">
-  <img id="modalImg">
-</div>
-
 <script>
+
 let data = JSON.parse(localStorage.getItem("taxData")) || [];
-let currentImageData = null;
-let currentOcrText = "";
-let editingId = null;
+let profitChart = null;
 
-document.getElementById("date").valueAsDate = new Date();
-
-function yen(n) {
-  return "¥" + Number(n || 0).toLocaleString();
+function saveData() {
+  localStorage.setItem("taxData", JSON.stringify(data));
 }
 
-function resizeImage(file) {
-  return new Promise(resolve => {
-    const reader = new FileReader();
-    reader.onload = e => {
-      const img = new Image();
-      img.onload = () => {
-        const canvas = document.createElement("canvas");
-        const ctx = canvas.getContext("2d");
-        const maxWidth = 800;
-        const scale = Math.min(1, maxWidth / img.width);
-        canvas.width = img.width * scale;
-        canvas.height = img.height * scale;
-        ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
-        resolve(canvas.toDataURL("image/jpeg", 0.75));
-      };
-      img.src = e.target.result;
-    };
-    reader.readAsDataURL(file);
-  });
-}
-
-async function readReceipt() {
-  const file = document.getElementById("image").files[0];
-
-  if (!file) {
-    alert("レシート画像を選んでください");
-    return;
-  }
-
-  document.getElementById("ocrResult").innerText = "読み取り中です...";
-  currentImageData = await resizeImage(file);
-
-  const result = await Tesseract.recognize(currentImageData, "jpn+eng", {
-    logger: m => {
-      if (m.status === "recognizing text") {
-        document.getElementById("ocrResult").innerText =
-          "読み取り中… " + Math.round(m.progress * 100) + "%";
-      }
-    }
-  });
-
-  currentOcrText = result.data.text || "";
-  document.getElementById("ocrResult").innerText = currentOcrText || "文字を読み取れませんでした。";
-
-  const guessed = guessAmount(currentOcrText);
-  if (guessed) document.getElementById("amount").value = guessed;
-}
-
-function guessAmount(text) {
-  const candidates = [];
-  const lines = text.split("\n");
-
-  lines.forEach(line => {
-    if (line.includes("合計") || line.includes("総計") || line.includes("税込") || line.includes("現計")) {
-      const nums = line.match(/[0-9,]{2,}/g);
-      if (nums) nums.forEach(n => candidates.push(Number(n.replace(/,/g, ""))));
-    }
-  });
-
-  if (candidates.length === 0) {
-    const nums = text.match(/[0-9,]{3,}/g);
-    if (nums) nums.forEach(n => candidates.push(Number(n.replace(/,/g, ""))));
-  }
-
-  const filtered = candidates.filter(n => n > 0 && n < 1000000);
-  return filtered.length ? Math.max(...filtered) : "";
-}
-
-async function addData() {
-  const file = document.getElementById("image").files[0];
-  if (file && !currentImageData) currentImageData = await resizeImage(file);
-
+function addData() {
   const item = {
-    id: editingId || Date.now(),
+    id: Date.now(),
     date: document.getElementById("date").value,
     account: document.getElementById("account").value,
     type: document.getElementById("type").value,
     category: document.getElementById("category").value,
     amount: Number(document.getElementById("amount").value),
-    memo: document.getElementById("memo").value,
-    image: currentImageData,
-    ocrText: currentOcrText
+    memo: document.getElementById("memo").value
   };
 
-  if (!item.date || !item.amount) {
-    alert("日付と金額を入力してください");
-    return;
-  }
+  if (!item.date || !item.amount) return alert("入力してください");
 
-  if (editingId) {
-    const index = data.findIndex(d => d.id === editingId);
-    if (index !== -1) data[index] = item;
-    editingId = null;
-    document.getElementById("saveButton").innerText = "追加";
-    document.getElementById("cancelEditButton").style.display = "none";
-  } else {
-    data.push(item);
-  }
-
+  data.push(item);
   saveData();
-
-  document.getElementById("amount").value = "";
-  document.getElementById("memo").value = "";
-  document.getElementById("image").value = "";
-  document.getElementById("ocrResult").innerText = "まだ読み取っていません。";
-  currentImageData = null;
-  currentOcrText = "";
-}
-
-function saveData() {
-  localStorage.setItem("taxData", JSON.stringify(data));
   updateUI();
 }
 
-function calc(account, type) {
-  return data
-    .filter(d => d.account === account && d.type === type)
-    .reduce((sum, d) => sum + Number(d.amount || 0), 0);
-}
-
 function updateUI() {
-  const businessIncome = calc("business", "income");
-  const businessExpense = calc("business", "expense");
-  const investmentIncome = calc("investment", "income");
-  const investmentExpense = calc("investment", "expense");
-
-  const allIncome = businessIncome + investmentIncome;
-  const allExpense = businessExpense + investmentExpense;
-
-  document.getElementById("businessIncome").innerText = yen(businessIncome);
-  document.getElementById("businessExpense").innerText = yen(businessExpense);
-  document.getElementById("businessProfit").innerText = yen(businessIncome - businessExpense);
-
-  document.getElementById("investmentIncome").innerText = yen(investmentIncome);
-  document.getElementById("investmentExpense").innerText = yen(investmentExpense);
-  document.getElementById("investmentProfit").innerText = yen(investmentIncome - investmentExpense);
-
-  document.getElementById("allIncome").innerText = yen(allIncome);
-  document.getElementById("allExpense").innerText = yen(allExpense);
-  document.getElementById("allProfit").innerText = yen(allIncome - allExpense);
-
-  updateSummary();
   updateList();
-}
-
-function makeSummary(type) {
-  const summary = {};
-
-  data.forEach(d => {
-    if (!d.date) return;
-    const key = type === "year" ? d.date.slice(0, 4) : d.date.slice(0, 7);
-
-    if (!summary[key]) {
-      summary[key] = {
-        businessIncome: 0,
-        businessExpense: 0,
-        investmentIncome: 0,
-        investmentExpense: 0
-      };
-    }
-
-    const amount = Number(d.amount || 0);
-
-    if (d.account === "business" && d.type === "income") summary[key].businessIncome += amount;
-    if (d.account === "business" && d.type === "expense") summary[key].businessExpense += amount;
-    if (d.account === "investment" && d.type === "income") summary[key].investmentIncome += amount;
-    if (d.account === "investment" && d.type === "expense") summary[key].investmentExpense += amount;
-  });
-
-  return summary;
-}
-
-function renderSummary(targetId, type) {
-  const summary = makeSummary(type);
-  const keys = Object.keys(summary).sort().reverse();
-  const target = document.getElementById(targetId);
-
-  if (keys.length === 0) {
-    target.innerHTML = "<p>まだデータがありません。</p>";
-    return;
-  }
-
-  let html = `
-    <table>
-      <tr>
-        <th>${type === "year" ? "年" : "月"}</th>
-        <th>事業利益</th>
-        <th>FX・株利益</th>
-        <th>全体利益</th>
-      </tr>
-  `;
-
-  keys.forEach(key => {
-    const s = summary[key];
-    const businessProfit = s.businessIncome - s.businessExpense;
-    const investmentProfit = s.investmentIncome - s.investmentExpense;
-    const totalProfit = businessProfit + investmentProfit;
-
-    html += `
-      <tr>
-        <td>${key}</td>
-        <td>${yen(businessProfit)}</td>
-        <td>${yen(investmentProfit)}</td>
-        <td>${yen(totalProfit)}</td>
-      </tr>
-    `;
-  });
-
-  html += "</table>";
-  target.innerHTML = html;
-}
-
-function updateSummary() {
-  renderSummary("yearlySummary", "year");
-  renderSummary("monthlySummary", "month");
+  updateChart();
 }
 
 function updateList() {
   const list = document.getElementById("list");
   list.innerHTML = "";
 
-  if (data.length === 0) {
-    list.innerHTML = "<p>まだデータがありません。</p>";
-    return;
-  }
-
-  data.slice().reverse().forEach(d => {
-    const div = document.createElement("div");
-    div.className = "row";
-
-    div.innerHTML = `
-      <strong>${d.account === "business" ? "事業" : "FX・株"} / ${d.type === "income" ? "収入" : "経費"}：${yen(d.amount)}</strong><br>
-      <span class="small">${d.date} / ${d.category || ""}</span><br>
-      <span>${d.memo || ""}</span><br>
-      ${d.image ? `<img src="${d.image}" onclick="openModal('${d.image}')">` : ""}
-      <details>
-        <summary>OCR結果を見る</summary>
-        <div class="ocrbox">${d.ocrText || "OCRなし"}</div>
-      </details>
-      <button class="sub" onclick="editItem(${d.id})">編集</button>
-      <button class="delete" onclick="deleteItem(${d.id})">削除</button>
-    `;
-
-    list.appendChild(div);
-  });
-}
-
-function editItem(id) {
-  const item = data.find(d => d.id === id);
-  if (!item) return;
-
-  editingId = id;
-
-  document.getElementById("date").value = item.date;
-  document.getElementById("account").value = item.account;
-  document.getElementById("type").value = item.type;
-  document.getElementById("category").value = item.category;
-  document.getElementById("amount").value = item.amount;
-  document.getElementById("memo").value = item.memo || "";
-  document.getElementById("ocrResult").innerText = item.ocrText || "OCRなし";
-
-  currentImageData = item.image || null;
-  currentOcrText = item.ocrText || "";
-
-  document.getElementById("saveButton").innerText = "更新";
-  document.getElementById("cancelEditButton").style.display = "block";
-
-  window.scrollTo({ top: 0, behavior: "smooth" });
-}
-
-function cancelEdit() {
-  editingId = null;
-  document.getElementById("amount").value = "";
-  document.getElementById("memo").value = "";
-  document.getElementById("image").value = "";
-  document.getElementById("ocrResult").innerText = "まだ読み取っていません。";
-  currentImageData = null;
-  currentOcrText = "";
-  document.getElementById("saveButton").innerText = "追加";
-  document.getElementById("cancelEditButton").style.display = "none";
-}
-
-function deleteItem(id) {
-  data = data.filter(d => d.id !== id);
-  saveData();
-}
-
-function csvEscape(value) {
-  const v = String(value ?? "");
-  return `"${v.replace(/"/g, '""')}"`;
-}
-
-function downloadCSV() {
-  let csv = "日付,区分,種類,勘定科目,金額,メモ,OCR結果\n";
+  const grouped = {};
 
   data.forEach(d => {
-    csv += [
-      d.date,
-      d.account === "business" ? "事業" : "FX・株",
-      d.type === "income" ? "収入" : "経費",
-      d.category,
-      d.amount,
-      d.memo,
-      d.ocrText
-    ].map(csvEscape).join(",") + "\n";
+    const month = d.date.slice(0,7);
+    if (!grouped[month]) grouped[month] = [];
+    grouped[month].push(d);
   });
 
-  const bom = new Uint8Array([0xEF, 0xBB, 0xBF]);
-  const blob = new Blob([bom, csv], { type: "text/csv" });
+  Object.keys(grouped).sort().reverse().forEach(month => {
+    const details = document.createElement("details");
 
-  const link = document.createElement("a");
-  link.href = URL.createObjectURL(blob);
-  link.download = "tax_data.csv";
-  link.click();
+    const items = grouped[month];
+
+    const total = items.reduce((sum,d)=> sum + (d.type==="income"?d.amount:-d.amount),0);
+
+    details.innerHTML = `
+      <summary>${month} 利益：¥${total.toLocaleString()}</summary>
+    `;
+
+    items.forEach(d => {
+      const div = document.createElement("div");
+      div.className = "row";
+
+      div.innerHTML = `
+        ${d.date} ${d.category} ¥${d.amount}
+        <button onclick="deleteItem(${d.id})">削除</button>
+      `;
+
+      details.appendChild(div);
+    });
+
+    list.appendChild(details);
+  });
 }
 
-function parseCSV(text) {
-  const rows = [];
-  let row = [];
-  let cell = "";
-  let inQuotes = false;
+function deleteItem(id){
+  data = data.filter(d=>d.id!==id);
+  saveData();
+  updateUI();
+}
 
-  for (let i = 0; i < text.length; i++) {
-    const char = text[i];
-    const next = text[i + 1];
+function updateChart(){
+  const summary = {};
 
-    if (char === '"' && inQuotes && next === '"') {
-      cell += '"';
-      i++;
-    } else if (char === '"') {
-      inQuotes = !inQuotes;
-    } else if (char === "," && !inQuotes) {
-      row.push(cell);
-      cell = "";
-    } else if ((char === "\n" || char === "\r") && !inQuotes) {
-      if (cell || row.length) {
-        row.push(cell);
-        rows.push(row);
-        row = [];
-        cell = "";
-      }
-      if (char === "\r" && next === "\n") i++;
-    } else {
-      cell += char;
+  data.forEach(d=>{
+    const m = d.date.slice(0,7);
+    if(!summary[m]) summary[m]=0;
+    summary[m]+= d.type==="income"?d.amount:-d.amount;
+  });
+
+  const labels = Object.keys(summary).sort();
+  const values = labels.map(l=>summary[l]);
+
+  if(profitChart) profitChart.destroy();
+
+  const ctx = document.getElementById("profitChart").getContext("2d");
+
+  profitChart = new Chart(ctx,{
+    type:"line",
+    data:{
+      labels:labels,
+      datasets:[{
+        label:"利益",
+        data:values,
+        borderWidth:2,
+        tension:0.3
+      }]
     }
-  }
-
-  if (cell || row.length) {
-    row.push(cell);
-    rows.push(row);
-  }
-
-  return rows;
+  });
 }
 
-function importCSV() {
-  const file = document.getElementById("csvFile").files[0];
-
-  if (!file) {
-    alert("CSVファイルを選んでください");
-    return;
-  }
-
-  const reader = new FileReader();
-
-  reader.onload = e => {
-    const text = e.target.result.replace(/^\uFEFF/, "");
-    const rows = parseCSV(text);
-
-    if (rows.length <= 1) {
-      alert("CSVにデータがありません");
-      return;
-    }
-
-    const imported = rows.slice(1).map(r => ({
-      id: Date.now() + Math.random(),
-      date: r[0] || "",
-      account: r[1] === "FX・株" ? "investment" : "business",
-      type: r[2] === "経費" ? "expense" : "income",
-      category: r[3] || "",
-      amount: Number(r[4] || 0),
-      memo: r[5] || "",
-      ocrText: r[6] || "",
-      image: null
-    })).filter(d => d.date && d.amount);
-
-    if (imported.length === 0) {
-      alert("読み込めるデータがありませんでした");
-      return;
-    }
-
-    if (confirm("CSVのデータを追加で読み込みますか？\n既存データは残ります。")) {
-      data = data.concat(imported);
-      saveData();
-      alert("CSVを読み込みました");
-    }
-  };
-
-  reader.readAsText(file, "UTF-8");
-}
-
-function downloadJSON() {
-  const backup = {
-    app: "tax-app",
-    version: 1,
-    createdAt: new Date().toISOString(),
-    data: data
-  };
-
-  const json = JSON.stringify(backup, null, 2);
-  const blob = new Blob([json], { type: "application/json" });
-
-  const link = document.createElement("a");
-  link.href = URL.createObjectURL(blob);
-  link.download = "tax_app_backup.json";
-  link.click();
-}
-
-function importJSON() {
-  const file = document.getElementById("jsonFile").files[0];
-
-  if (!file) {
-    alert("バックアップファイルを選んでください");
-    return;
-  }
-
-  const reader = new FileReader();
-
-  reader.onload = e => {
-    try {
-      const backup = JSON.parse(e.target.result);
-
-      if (!backup.data || !Array.isArray(backup.data)) {
-        alert("正しいバックアップファイルではありません");
-        return;
-      }
-
-      if (confirm("バックアップを復元しますか？\n現在のデータは上書きされます。")) {
-        data = backup.data;
-        localStorage.setItem("taxData", JSON.stringify(data));
-        updateUI();
-        alert("バックアップを復元しました");
-      }
-    } catch (error) {
-      alert("バックアップファイルを読み込めませんでした");
-    }
-  };
-
-  reader.readAsText(file, "UTF-8");
-}
-
-function clearData() {
-  if (confirm("全データを削除しますか？")) {
-    localStorage.removeItem("taxData");
-    data = [];
-    updateUI();
-  }
-}
-
-function openModal(src) {
-  document.getElementById("modal").style.display = "flex";
-  document.getElementById("modalImg").src = src;
-}
-
-function closeModal() {
-  document.getElementById("modal").style.display = "none";
+async function readReceipt(){
+  alert("OCR機能は簡易版です");
 }
 
 updateUI();
+
 </script>
 
 </body>
