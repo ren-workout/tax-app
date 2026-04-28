@@ -241,7 +241,19 @@ async function addData() {
     return;
   }
 
+  if (editingId) {
+  const index = data.findIndex(d => d.id === editingId);
+  if (index !== -1) {
+    item.id = editingId;
+    data[index] = item;
+  }
+
+  editingId = null;
+  document.getElementById("saveButton").innerText = "追加";
+  document.getElementById("cancelEditButton").style.display = "none";
+} else {
   data.push(item);
+}
   saveData();
 
   document.getElementById("amount").value = "";
