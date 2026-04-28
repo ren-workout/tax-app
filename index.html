@@ -133,7 +133,8 @@ th:first-child, td:first-child { text-align: left; }
 <button onclick="downloadJSON()">完全バックアップ作成</button>
 
 <label>完全バックアップから復元</label>
-<input type="file" id="jsonFile" accept=".json,application/json" onchange="importJSON()">
+<input type="file" id="jsonFile" accept=".json,application/json">
+<button onclick="importJSON()">完全バックアップを読み込む</button>
   <label>CSVから復元</label>
   <input type="file" id="csvFile" accept=".csv,text/csv">
   <button class="sub" onclick="importCSV()">CSVを読み込む</button>
@@ -587,6 +588,7 @@ function downloadJSON() {
 }
 
 function importJSON() {
+  alert("クリックされた");
   const file = document.getElementById("jsonFile").files[0];
 
   if (!file) {
