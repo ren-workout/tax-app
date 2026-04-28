@@ -34,9 +34,26 @@ h2 {
   margin-bottom: 12px;
   color: #333;
 }
-button { background: #222; color: white; border: none; border-radius: 8px; }
-.delete { background: #c0392b; }
-.sub { background: #555; }
+button {
+  width: 100%;
+  padding: 12px;
+  border: none;
+  border-radius: 10px;
+  background: linear-gradient(135deg, #4facfe, #00c6ff);
+  color: white;
+  font-size: 14px;
+  font-weight: bold;
+  margin-top: 8px;
+  transition: 0.2s;
+}
+
+button:hover {
+  opacity: 0.9;
+  transform: translateY(-1px);
+}
+
+.delete { background: #ff4d4f; }
+.sub { background: #666; }
 .total { font-size: 22px; font-weight: bold; }
 .small { color: #666; font-size: 13px; }
 .row { border-bottom: 1px solid #ddd; padding: 10px 0; }
