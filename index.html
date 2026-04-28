@@ -300,37 +300,82 @@ function updateUI() {
   document.getElementById("allExpense").innerText = yen(allExpense);
   document.getElementById("allProfit").innerText = yen(allIncome - allExpense);
 
-  updateMonthlySummary();
-  updateList();
-}
-
-function updateMonthlySummary() {
-  const monthly = {};
+function makeSummary(periodType) {
+  const summary = {};
 
   data.forEach(d => {
-    const month = d.date ? d.date.slice(0, 7) : "日付なし";
-    if (!monthly[month]) monthly[month] = { income: 0, expense: 0 };
-    if (d.type === "income") monthly[month].income += Number(d.amount || 0);
-    if (d.type === "expense") monthly[month].expense += Number(d.amount || 0);
+    if (!d.date) return;
+
+    const key = periodType === "year"
+      ? d.date.slice(0, 4)
+      : d.date.slice(0, 7);
+
+    if (!summary[key]) {
+      summary[key] = {
+        businessIncome: 0,
+        businessExpense: 0,
+        investmentIncome: 0,
+        investmentExpense: 0
+      };
+    }
+
+    const amount = Number(d.amount || 0);
+
+    if (d.account === "business" && d.type === "income") summary[key].businessIncome += amount;
+    if (d.account === "business" && d.type === "expense") summary[key].businessExpense += amount;
+    if (d.account === "investment" && d.type === "income") summary[key].investmentIncome += amount;
+    if (d.account === "investment" && d.type === "expense") summary[key].investmentExpense += amount;
   });
 
-  const months = Object.keys(monthly).sort().reverse();
+  return summary;
+}
 
-  if (months.length === 0) {
-    document.getElementById("monthlySummary").innerHTML = "<p>まだデータがありません。</p>";
+function renderSummary(targetId, periodType) {
+  const summary = makeSummary(periodType);
+  const keys = Object.keys(summary).sort().reverse();
+  const target = document.getElementById(targetId);
+
+  if (keys.length === 0) {
+    target.innerHTML = "<p>まだデータがありません。</p>";
     return;
   }
 
-  let html = "<table><tr><th>月</th><th>収入</th><th>経費</th><th>利益</th></tr>";
-  months.forEach(m => {
-    const income = monthly[m].income;
-    const expense = monthly[m].expense;
-    html += `<tr><td>${m}</td><td>${yen(income)}</td><td>${yen(expense)}</td><td>${yen(income - expense)}</td></tr>`;
-  });
-  html += "</table>";
+  let html = `
+    <table>
+      <tr>
+        <th>${periodType === "year" ? "年" : "月"}</th>
+        <th>事業利益</th>
+        <th>FX・株利益</th>
+        <th>全体利益</th>
+      </tr>
+  `;
 
-  document.getElementById("monthlySummary").innerHTML = html;
+  keys.forEach(key => {
+    const s = summary[key];
+
+    const businessProfit = s.businessIncome - s.businessExpense;
+    const investmentProfit = s.investmentIncome - s.investmentExpense;
+    const totalProfit = businessProfit + investmentProfit;
+
+    html += `
+      <tr>
+        <td>${key}</td>
+        <td>${yen(businessProfit)}</td>
+        <td>${yen(investmentProfit)}</td>
+        <td>${yen(totalProfit)}</td>
+      </tr>
+    `;
+  });
+
+  html += "</table>";
+  target.innerHTML = html;
 }
+
+function updateMonthlySummary() {
+  renderSummary("yearlySummary", "year");
+  renderSummary("monthlySummary", "month");
+}
+
 
 function updateList() {
   const list = document.getElementById("list");
