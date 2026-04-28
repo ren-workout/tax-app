@@ -141,16 +141,16 @@ input:focus, select:focus, textarea:focus {
   <button onclick="showTab('input')">入力</button>
   <button onclick="showTab('data')">データ</button>
 </div>
-<div class="card">
+<div id="dashboard" class="card">
 <h2>月別利益グラフ</h2>
   
 <canvas id="profitChart"></canvas>
 </div>
-<div id="dashboard" class="card">
+<div class="card">
   <h2>年間サマリー</h2>
   <div id="yearSummary"></div>
 </div>
-<div class="card">
+<div id="input" class="card">
 <h2>入力</h2>
 
 <div class="form-row">
@@ -182,7 +182,7 @@ input:focus, select:focus, textarea:focus {
 <button onclick="addData()">追加</button>
 </div>
 
-<details class="card" open>
+<details id="data" class="card" open>
   <summary><strong>データ一覧</strong></summary>
   <div id="list"></div>
 </details>
