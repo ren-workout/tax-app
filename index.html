@@ -461,6 +461,61 @@ function updateList() {
     return;
   }
 
+  const grouped = {};
+
+  data.slice().reverse().forEach(d => {
+    const month = d.date ? d.date.slice(0, 7) : "日付なし";
+    if (!grouped[month]) grouped[month] = [];
+    grouped[month].push(d);
+  });
+
+  Object.keys(grouped).sort().reverse().forEach(month => {
+    const items = grouped[month];
+
+    const income = items
+      .filter(d => d.type === "income")
+      .reduce((sum, d) => sum + Number(d.amount || 0), 0);
+
+    const expense = items
+      .filter(d => d.type === "expense")
+      .reduce((sum, d) => sum + Number(d.amount || 0), 0);
+
+    const profit = income - expense;
+
+    const details = document.createElement("details");
+    details.className = "row";
+
+    details.innerHTML = `
+      <summary>
+        <strong>${month}　利益：${yen(profit)}</strong><br>
+        <span class="small">収入：${yen(income)} / 経費：${yen(expense)} / 件数：${items.length}</span>
+      </summary>
+    `;
+
+    items.forEach(d => {
+      const div = document.createElement("div");
+      div.className = "row";
+
+      div.innerHTML = `
+        <strong>${d.account === "business" ? "事業" : "FX・株"} / ${d.type === "income" ? "収入" : "経費"}：${yen(d.amount)}</strong><br>
+        <span class="small">${d.date} / ${d.category || ""}</span><br>
+        <span>${d.memo || ""}</span><br>
+        ${d.image ? `<img src="${d.image}" onclick="openModal('${d.image}')">` : ""}
+        <details>
+          <summary>OCR結果を見る</summary>
+          <div class="ocrbox">${d.ocrText || "OCRなし"}</div>
+        </details>
+        <button class="sub" onclick="editItem(${d.id})">編集</button>
+        <button class="delete" onclick="deleteItem(${d.id})">削除</button>
+      `;
+
+      details.appendChild(div);
+    });
+
+    list.appendChild(details);
+  });
+}
+
   data.slice().reverse().forEach(d => {
     const div = document.createElement("div");
     div.className = "row";
