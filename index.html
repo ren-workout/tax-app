@@ -338,6 +338,7 @@ function updateList() {
         <summary>OCR結果を見る</summary>
         <div class="ocrbox">${d.ocrText || "OCRなし"}</div>
       </details>
+      <button class="sub" onclick="editItem(${d.id})">編集</button>
       <button class="delete" onclick="deleteItem(${d.id})">削除</button>
     `;
 
