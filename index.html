@@ -39,9 +39,13 @@ th:first-child, td:first-child { text-align: left; }
 
 <div class="card">
 <h2>月別利益グラフ</h2>
+  
 <canvas id="profitChart"></canvas>
 </div>
-
+<div class="card">
+  <h2>年間サマリー</h2>
+  <div id="yearSummary"></div>
+</div>
 <div class="card">
 <h2>入力</h2>
 
@@ -103,8 +107,58 @@ function addData() {
 function updateUI() {
   updateList();
   updateChart();
+  updateYearSummary();
 }
+function updateYearSummary() {
+  const box = document.getElementById("yearSummary");
+  box.innerHTML = "";
 
+  const summary = {};
+
+  data.forEach(d => {
+    if (!d.date) return;
+
+    const year = d.date.slice(0, 4);
+
+    if (!summary[year]) {
+      summary[year] = {
+        income: 0,
+        expense: 0
+      };
+    }
+
+    if (d.type === "income") {
+      summary[year].income += Number(d.amount || 0);
+    } else {
+      summary[year].expense += Number(d.amount || 0);
+    }
+  });
+
+  const years = Object.keys(summary).sort().reverse();
+
+  if (years.length === 0) {
+    box.innerHTML = "<p>まだデータがありません。</p>";
+    return;
+  }
+
+  years.forEach(year => {
+    const income = summary[year].income;
+    const expense = summary[year].expense;
+    const profit = income - expense;
+
+    const div = document.createElement("div");
+    div.className = "row";
+
+    div.innerHTML = `
+      <strong>${year}年</strong><br>
+      収入：¥${income.toLocaleString()}<br>
+      経費：¥${expense.toLocaleString()}<br>
+      <strong>利益：¥${profit.toLocaleString()}</strong>
+    `;
+
+    box.appendChild(div);
+  });
+}
 function updateList() {
   const list = document.getElementById("list");
   list.innerHTML = "";
