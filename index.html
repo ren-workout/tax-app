@@ -251,6 +251,13 @@ function showTab(tabName) {
   document.getElementById("data").style.display = "none";
 
   document.getElementById(tabName).style.display = "block";
+
+  document.querySelectorAll(".tabs button").forEach(button => {
+    button.classList.remove("active");
+  });
+
+  const activeButton = document.querySelector(`.tabs button[onclick="showTab('${tabName}')"]`);
+  if (activeButton) activeButton.classList.add("active");
 }
 
 // 最初はグラフ表示
