@@ -9,17 +9,11 @@
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 
 <style>
-
-</style>
-</head>
-
-<body>
 body {
   font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
   background: #f5f7fb;
   margin: 0;
-  padding: 20px;
-  color: #333;
+  padding: 16px;
 }
 
 h1 {
@@ -27,138 +21,120 @@ h1 {
   margin-bottom: 16px;
 }
 
-/* カード */
 .card {
   background: white;
-  padding: 20px;
-  border-radius: 16px;
-  box-shadow: 0 6px 20px rgba(0,0,0,0.05);
-  margin-bottom: 20px;
+  padding: 16px;
+  margin-bottom: 16px;
+  border-radius: 14px;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.06);
 }
 
-/* タブ */
-.tabs {
-  display: flex;
-  gap: 8px;
-  background: #e9eef6;
-  padding: 6px;
-  border-radius: 12px;
-  margin-bottom: 20px;
+h2 {
+  font-size: 16px;
+  margin-bottom: 12px;
+  color: #333;
 }
-
-.tabs button {
-  flex: 1;
-  border: none;
+button {
+  width: 100%;
   padding: 12px;
+  border: none;
   border-radius: 10px;
-  background: transparent;
+  background: linear-gradient(135deg, #4facfe, #00c6ff);
+  color: white;
+  font-size: 14px;
   font-weight: bold;
-  cursor: pointer;
+  margin-top: 8px;
   transition: 0.2s;
 }
 
-.tabs button:hover {
-  background: white;
+button:hover {
+  opacity: 0.9;
+  transform: translateY(-1px);
 }
-
-.tabs button.active {
-  background: #2f6bff;
-  color: white;
+#profitChart {
+  height: 240px !important;
+  margin-top: 8px;
 }
-
-/* グリッド（横並び） */
-.grid {
-  display: grid;
-  grid-template-columns: 2fr 1fr;
-  gap: 20px;
-}
-
-.grid-2 {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 20px;
-}
-
-/* サマリーカード */
-.summary-box {
-  display: flex;
-  flex-direction: column;
-  gap: 12px;
-}
-
-.summary-item {
-  background: #f8faff;
-  padding: 16px;
-  border-radius: 12px;
-}
-
-.summary-item h3 {
-  margin: 0;
-  font-size: 14px;
-  color: #666;
-}
-
-.summary-item p {
-  margin: 4px 0 0;
-  font-size: 20px;
+.delete { background: #ff4d4f; }
+.sub { background: #666; }
+.total { font-size: 22px; font-weight: bold; }
+.small { color: #666; font-size: 13px; }
+.row { border-bottom: 1px solid #ddd; padding: 10px 0; }
+.ocrbox { white-space: pre-wrap; background: #eee; padding: 10px; border-radius: 8px; font-size: 13px; }
+img { width: 90px; margin-top: 8px; border-radius: 6px; }
+table { width: 100%; border-collapse: collapse; font-size: 14px; }
+th, td { border-bottom: 1px solid #ddd; padding: 8px; text-align: right; }
+th:first-child, td:first-child { text-align: left; }
+details.card summary {
+  cursor: pointer;
+  font-size: 18px;
   font-weight: bold;
+  padding: 8px 0;
 }
 
-/* フォーム */
+details.card .row {
+  background: #f9fafb;
+  border: 1px solid #e5e7eb;
+  border-radius: 10px;
+  padding: 12px;
+  margin-top: 8px;
+}
+
+details.card .row strong {
+  font-size: 16px;
+}
+
+details.card .row button {
+  margin-top: 8px;
+}
+input, select, textarea {
+  min-height: 38px;
+}  
 .form-row {
   display: flex;
-  gap: 10px;
-  margin-bottom: 10px;
+  gap: 8px;
 }
 
 .form-row > * {
   flex: 1;
 }
-
 input, select, textarea {
-  padding: 12px;
-  border-radius: 10px;
+  border-radius: 8px;
   border: 1px solid #ddd;
-  font-size: 14px;
 }
 
 input:focus, select:focus, textarea:focus {
   outline: none;
-  border-color: #2f6bff;
-  box-shadow: 0 0 0 2px rgba(47,107,255,0.2);
+  border-color: #00c6ff;
+  box-shadow: 0 0 0 2px rgba(0,198,255,0.2);
+}
+.tabs {
+  display: flex;
+  gap: 8px;
+  background: #eef2f7;
+  padding: 6px;
+  border-radius: 12px;
+  margin-bottom: 16px;
 }
 
-/* ボタン */
-button {
-  padding: 14px;
-  border: none;
+.tabs button {
+  background: transparent;
+  color: #333;
+  margin-top: 0;
   border-radius: 10px;
-  background: linear-gradient(90deg, #2f6bff, #00c6ff);
-  color: white;
-  font-weight: bold;
-  cursor: pointer;
-}
-
-button:hover {
-  opacity: 0.9;
-}
-
-/* データ一覧 */
-details {
-  margin-top: 20px;
-}
-
-summary {
-  cursor: pointer;
   font-weight: bold;
 }
 
-/* スマホ対応 */
-@media (max-width: 768px) {
-  .grid, .grid-2 {
-    grid-template-columns: 1fr;
-  }
+.tabs button:hover {
+  background: white;
+  opacity: 1;
+  transform: none;
 }
+</style>
+</head>
+
+<body>
+
 <h1>確定申告準備アプリ</h1>
 <div class="tabs">
   <button onclick="showTab('dashboard')">グラフ</button>
