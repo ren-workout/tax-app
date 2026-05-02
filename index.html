@@ -261,22 +261,19 @@ function updateYearSummary() {
 
   const summary = {};
 
-  data.forEach(d => {
-    if (!d.date) return;
+  data.forEach(item => {
+    if (!item.date) return;
 
-    const year = d.date.slice(0, 4);
+    const year = item.date.slice(0, 4);
 
     if (!summary[year]) {
-      summary[year] = {
-        income: 0,
-        expense: 0
-      };
+      summary[year] = { income: 0, expense: 0 };
     }
 
-    if (d.type === "income") {
-      summary[year].income += Number(d.amount || 0);
+    if (item.type === "income") {
+      summary[year].income += Number(item.amount || 0);
     } else {
-      summary[year].expense += Number(d.amount || 0);
+      summary[year].expense += Number(item.amount || 0);
     }
   });
 
@@ -292,17 +289,14 @@ function updateYearSummary() {
     const expense = summary[year].expense;
     const profit = income - expense;
 
-    const div = document.createElement("div");
-    div.className = "row";
-
-    div.innerHTML = `
-      <strong>${year}年</strong><br>
-      収入：¥${income.toLocaleString()}<br>
-      経費：¥${expense.toLocaleString()}<br>
-      <strong>利益：¥${profit.toLocaleString()}</strong>
+    box.innerHTML += `
+      <div class="summary-item">
+        <h3>${year}年</h3>
+        <p>収入：¥${income.toLocaleString()}</p>
+        <p>経費：¥${expense.toLocaleString()}</p>
+        <p><strong>利益：¥${profit.toLocaleString()}</strong></p>
+      </div>
     `;
-
-    box.appendChild(div);
   });
 }
 function updateList() {
